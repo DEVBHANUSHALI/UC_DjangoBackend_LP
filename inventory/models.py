@@ -7,7 +7,24 @@ class Product(models.Model):
     stock = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    category = models.ForeignKey("Category", on_delete=models.CASCADE)
+    supplier = models.ForeignKey("Supplier",on_delete=models.CASCADE)
 
+    def __str__(self):
+        return self.name
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+
+    def __str__(self):
+        return self.name
+
+class Supplier(models.Model):
+    name = models.CharField(max_length=100)
+    contact_email = models.EmailField()
+    phone = models.CharField(max_length=15)
 
     def __str__(self):
         return self.name
