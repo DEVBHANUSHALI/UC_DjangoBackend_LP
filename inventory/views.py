@@ -139,3 +139,27 @@ def product_detail(request,id):
 
     
 
+def category_products(request,id):
+    products = Product.objects.filter(category_id=id)
+    data = []
+    for product in products:
+        data.append({
+            "id": product.id,
+            "name": product.name,
+            "price": product.price,
+            "stock": product.stock
+        })
+    return JsonResponse(data, safe=False)
+
+
+def supplier_products(request,id):
+    products = Product.objects.filter(supplier_id=id)
+    data = []
+    for product in products:
+        data.append({
+            "id": product.id,
+            "name": product.name,
+            "price": product.price,
+            "stock": product.stock
+        })
+    return JsonResponse(data, safe=False)
