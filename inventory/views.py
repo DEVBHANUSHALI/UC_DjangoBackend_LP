@@ -3,6 +3,9 @@ from django.shortcuts import render
 from .models import Product,Category,Supplier
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import authenticate
 
 @csrf_exempt
 #GET-ALL AND POST METHOD
@@ -163,3 +166,83 @@ def supplier_products(request,id):
             "stock": product.stock
         })
     return JsonResponse(data, safe=False)
+
+
+@csrf_exempt
+def signup(request):
+
+    if request.method != "POST":
+        return JsonResponse({
+            "message" : "Only POST method is allowed"
+        },status = 405)
+
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            "message" : "Invalid JSON"
+        },status = 400)
+
+    if "username" not in body or "password" not in body:
+        return JsonResponse({
+            "message" : "Username and Password is required"
+        },status =400)
+    
+    username = body["username"]
+    password = body["password"]
+
+    if User.objects.filter(username = username).exists():
+        return JsonResponse({
+            "message" : "Username already exists"
+        },status = 400)
+
+    user = User.objects.create_user(
+        username = username,
+        password = password
+    )
+
+    token = Token.objects.create(user=user)
+
+    return JsonResponse({
+        "message": "User created successfully",
+        "token" : token.key
+    },status=201)
+
+@csrf_exempt
+def login(request):
+    if request.method != "POST":
+        return JsonResponse({
+            "message" : "Only POST method is allowed"
+        },status = 405)
+    
+    try:
+        body = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({
+            "message" : "Invalid JSON"
+        },status = 400)
+    
+    if "username" not in body or "password" not in body:
+        return JsonResponse({
+            "message" : "Username and Password is required"
+        },status =400)
+        
+    username = body["username"]
+    password = body["password"]
+    
+    user = authenticate(
+        username=username,
+        password=password
+    )
+
+    if user is None:
+        return JsonResponse({
+            "message" : "Invalid username or password"
+        },status = 401)
+
+    token,created = Token.objects.get_or_create(user=user) #f this user already has a token, give me that token. Otherwise, create one."
+
+    return JsonResponse({
+        "message" : "Login successful",
+        "token" : token.key
+    })
