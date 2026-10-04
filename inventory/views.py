@@ -7,11 +7,45 @@ from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 
+
+def get_authenticated_user(request):
+
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header:
+        return None
+
+    if not auth_header.startswith("Token "):
+        return None
+
+    token_key = auth_header.split(" ")[1]
+
+    try:
+        token = Token.objects.get(key=token_key)
+    except Token.DoesNotExist:
+        return None
+
+    return token.user
+
+
+
 @csrf_exempt
 #GET-ALL AND POST METHOD
 def products(request):
 
     if request.method == "POST":
+
+        user = get_authenticated_user(request)
+        if user is None:
+            return JsonResponse({
+                "message" : "Authentication required"
+            },status=401)
+
+        if not user.has_perm("inventory.add_product"):
+            return JsonResponse({
+                "message" : "You do not have permission to create products"
+            },status=403)
+        
         body = json.loads(request.body)
 
         category_id = body["category"]
@@ -27,7 +61,8 @@ def products(request):
                 price = body["price"],
                 stock = body["stock"],
                 category_id = category_id,
-                supplier_id = supplier_id
+                supplier_id = supplier_id,
+                created_by=user
             )
 
             return JsonResponse({
@@ -35,6 +70,7 @@ def products(request):
                 "name" : product.name,
                 "price" : product.price,
                 "stock" : product.stock,
+                "created_by": product.created_by.username,
                 "category" : {
                     "id": product.category.id,
                     "name" : product.category.name
@@ -55,6 +91,7 @@ def products(request):
             "name" : product.name,
             "price" : product.price,
             "stock" : product.stock,
+            "created_by": product.created_by.username,
             "category" : {
                 "id": product.category.id,
                 "name" : product.category.name
@@ -79,6 +116,19 @@ def product_detail(request,id):
         },status=404)
     
     if request.method == "PATCH":
+
+        user = get_authenticated_user(request)
+
+        if user is None:
+            return JsonResponse({
+                "message": "Authentication required"
+            }, status=401)
+
+        if not user.has_perm("inventory.change_product"):
+            return JsonResponse({
+                "message": "You do not have permission to update products"
+            }, status=403)
+
         body = json.loads(request.body)
 
         if "name" in body:
@@ -100,6 +150,19 @@ def product_detail(request,id):
         product.save()
 
     if request.method == "PUT":
+
+        user = get_authenticated_user(request)
+        
+        if user is None:
+            return JsonResponse({
+                 "message": "Authentication required"
+            }, status=401)
+        
+        if not user.has_perm("inventory.change_product"):
+            return JsonResponse({
+                "message": "You do not have permission to update products"
+            }, status=403)
+
         body = json.loads(request.body)
 
         product.name = body["name"]
@@ -116,6 +179,19 @@ def product_detail(request,id):
         product.save()
 
     if request.method == "DELETE":
+
+        user = get_authenticated_user(request)
+
+        if user is None:
+            return JsonResponse({
+                "message": "Authentication required"
+        }, status=401)
+
+        if not user.has_perm("inventory.delete_product"):
+            return JsonResponse({
+                "message": "You do not have permission to delete products"
+        }, status=403)
+
         product.delete()
 
         return JsonResponse({
@@ -134,7 +210,8 @@ def product_detail(request,id):
         "supplier": {
             "id": product.supplier.id,
             "name": product.supplier.name
-        }
+        },
+        "created_by": product.created_by.username
     }
 
     return JsonResponse(data)
@@ -246,3 +323,58 @@ def login(request):
         "message" : "Login successful",
         "token" : token.key
     })
+
+
+@csrf_exempt
+def logout(request):
+
+    if request.method!="POST":
+        return JsonResponse({
+            "message" : "Only POST method is allowed"
+        },status=405)
+
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header: #checks if auth_header is NULL 
+        return JsonResponse({
+            "message" : "Authorization Token is required"
+        },status=401)
+
+    if not auth_header.startswith("Token "):
+        return JsonResponse({
+            "message" : "Invalid authorization format"
+        },status=401)
+
+    token_key = auth_header.split(" ")[1] 
+    #split(" ") gives ["Token", "xyzabc123"] 
+    #split(" ")[1] gives "xyzabc123" so token_key = "xyzabc123"
+
+    try:
+        token = Token.objects.get(key=token_key)
+    except Token.DoesNotExist:
+        return JsonResponse({
+            "message" : "Invalid Token"
+        },status=401)
+
+    token.delete()
+
+    return JsonResponse({
+        "message" : "Logout successful"
+    })
+
+def user_products(request, id):
+
+    products = Product.objects.filter(created_by_id=id)
+
+    data = []
+
+    for product in products:
+        data.append({
+            "id": product.id,
+            "name": product.name,
+            "price": product.price,
+            "stock": product.stock,
+            "created_by": product.created_by.username
+        })
+
+    return JsonResponse(data, safe=False)

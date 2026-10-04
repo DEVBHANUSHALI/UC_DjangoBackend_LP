@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from inventory.views import products,product_detail,category_products,supplier_products,signup,login
+from inventory.views import products,product_detail,category_products,supplier_products,signup,login,logout,user_products
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,4 +26,6 @@ urlpatterns = [
     path('suppliers/<int:id>/products/',supplier_products),
     path('auth/signup/',signup),
     path('auth/login/',login),
+    path('auth/logout/',logout),
+    path('users/<int:id>/products/',user_products),
 ]
